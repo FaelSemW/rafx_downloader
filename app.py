@@ -22,6 +22,16 @@ def setup_cookies():
     return None
 
 
+# --- RESPOSTAS EM JSON PARA ERROS DO SERVIDOR (Evita erro de HTML no front) ---
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({'error': 'Erro interno no servidor ou timeout. Tente novamente.'}), 500
+
+@app.errorhandler(404)
+def not_found_error(error):
+    return jsonify({'error': 'Rota não encontrada.'}), 404
+
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -38,6 +48,7 @@ def get_info():
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
+        'noplaylist': True,  # Força pegar apenas o vídeo individual e ignora playlists/mixes
     }
     
     cookie_file = setup_cookies()
@@ -51,6 +62,10 @@ def get_info():
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             
+            # Se ainda assim o yt-dlp retornar uma estrutura com múltiplos vídeos, pega o primeiro
+            if 'entries' in info and info['entries']:
+                info = info['entries'][0]
+
             formats = info.get('formats', [])
             resolutions = set()
             for f in formats:
@@ -87,6 +102,7 @@ def process_download():
         'outtmpl': filename_template,
         'quiet': True,
         'no_warnings': True,
+        'noplaylist': True,  # Impede o download da playlist inteira
     }
 
     cookie_file = setup_cookies()
@@ -106,7 +122,7 @@ def process_download():
             }],
         })
     else:
-        # Fallbacks em cascata para evitar erros de formato indisponível
+        # Regras de formato com fallback seguro para não falhar no download
         if quality and quality != 'max':
             ydl_opts['format'] = (
                 f'bestvideo[height<={quality}]+bestaudio/'
@@ -121,7 +137,7 @@ def process_download():
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.extract_info(url, download=True)
 
-        # Encontra o arquivo que foi baixado dentro da pasta temporária
+        # Localiza o arquivo gerado na pasta temporária
         downloaded_files = glob.glob(os.path.join(temp_dir, '*'))
         if not downloaded_files:
             return jsonify({'error': 'Não foi possível localizar o arquivo baixado'}), 500
