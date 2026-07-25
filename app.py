@@ -47,6 +47,10 @@ def get_info():
         'quiet': True,
         'no_warnings': True,
         'noplaylist': True,
+        # Força o uso dos clientes Android e Web para ignorar limitações recentes do YouTube
+        'extractor_args': {
+            'youtube': {'player_client': ['android', 'web']}
+        }
     }
     
     cookie_file = setup_cookies()
@@ -54,7 +58,7 @@ def get_info():
         ydl_opts['cookiefile'] = cookie_file
 
     if 'tiktok.com' in url.lower():
-        ydl_opts['extractor_args'] = {'tiktok': {'app_version': 'latest'}}
+        ydl_opts['extractor_args']['tiktok'] = {'app_version': 'latest'}
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -100,6 +104,9 @@ def process_download():
         'quiet': True,
         'no_warnings': True,
         'noplaylist': True,
+        'extractor_args': {
+            'youtube': {'player_client': ['android', 'web']}
+        }
     }
 
     cookie_file = setup_cookies()
@@ -107,7 +114,7 @@ def process_download():
         ydl_opts['cookiefile'] = cookie_file
 
     if 'tiktok.com' in url.lower():
-        ydl_opts['extractor_args'] = {'tiktok': {'app_version': 'latest'}}
+        ydl_opts['extractor_args']['tiktok'] = {'app_version': 'latest'}
 
     if format_type == 'mp3':
         ydl_opts.update({
@@ -119,7 +126,6 @@ def process_download():
             }],
         })
     else:
-        # Formatos em cascata super flexíveis
         if quality and quality != 'max':
             ydl_opts['format'] = (
                 f'bestvideo[height<={quality}]+bestaudio/'
