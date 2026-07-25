@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StreamDrop - Downloader Futurista</title>
+    <style>
+        :root {
+            --bg-color: #0b0d17;
+            --card-bg: rgba(255, 255, 255, 0.04);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --accent-cyan: #00f2fe;
+            --accent-purple: #4facfe;
+            --neon-glow: 0 0 20px rgba(0, 242, 254, 0.4);
+            --text-main: #ffffff;
+            --text-muted: #a0a5c0;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(79, 172, 254, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(0, 242, 254, 0.15) 0%, transparent 40%);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 650px;
+            padding: 2.5rem;
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+            animation: fadeIn 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+            letter-spacing: -1px;
+        }
+
+        .header p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .input-group {
+            position: relative;
+            display: flex;
+            gap: 10px;
+            margin-bottom: 1.5rem;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 1.1rem 1.4rem;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            color: #fff;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        input[type="text"]:focus {
+            border-color: var(--accent-cyan);
+            box-shadow: var(--neon-glow);
+        }
+
+        .btn-action {
+            padding: 0 1.8rem;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
+            border: none;
+            border-radius: 14px;
+            color: #000;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--neon-glow);
+        }
+
+        .media-card {
+            display: none;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.2rem;
+            margin-top: 1.5rem;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .preview-content {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 1.2rem;
+        }
+
+        .preview-content img {
+            width: 110px;
+            height: 70px;
+            object-fit: cover;
+            border-radius: 10px;
+        }
+
+        .media-info h3 {
+            font-size: 1rem;
+            line-height: 1.3;
+            margin-bottom: 0.3rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .media-info p {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .options-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 1rem;
+        }
+
+        select, .btn-download {
+            width: 100%;
+            padding: 0.9rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: #fff;
+            outline: none;
+            font-size: 0.9rem;
+            cursor: pointer;
+        }
+
+        select option {
+            background-color: var(--bg-color);
+        }
+
+        .btn-download {
+            grid-column: span 2;
+            background: linear-gradient(135deg, #00b09b, #96c93d);
+            border: none;
+            color: #000;
+            font-weight: 700;
+            margin-top: 0.5rem;
+            transition: transform 0.2s ease;
+        }
+
+        .btn-download:hover {
+            transform: scale(1.02);
+        }
+
+        .loader {
+            display: none;
+            text-align: center;
+            padding: 1rem;
+            color: var(--accent-cyan);
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h1>StreamDrop</h1>
+        <p>Baixe vídeos do TikTok sem marca d'água, YouTube e MP3 em alta qualidade.</p>
+    </div>
+
+    <div class="input-group">
+        <input type="text" id="videoUrl" placeholder="Cole o link do vídeo aqui..." autocomplete="off">
+        <button class="btn-action" onclick="fetchMediaInfo()">Analisar</button>
+    </div>
+
+    <div id="loader" class="loader">🔍 Analisando link e buscando formatos...</div>
+
+    <div id="mediaCard" class="media-card">
+        <div class="preview-content">
+            <img id="thumb" src="" alt="Thumbnail">
+            <div class="media-info">
+                <h3 id="title">Título do Vídeo</h3>
+                <p id="details">Canal • Duração</p>
+            </div>
+        </div>
+
+        <div class="options-grid">
+            <div>
+                <label style="font-size: 0.75rem; color: var(--text-muted);">Formato</label>
+                <select id="formatType" onchange="toggleQualityDropdown()">
+                    <option value="video">Vídeo (MP4)</option>
+                    <option value="mp3">Apenas Áudio (MP3)</option>
+                </select>
+            </div>
+            <div id="qualityGroup">
+                <label style="font-size: 0.75rem; color: var(--text-muted);">Qualidade</label>
+                <select id="qualitySelect">
+                    <!-- Opções dinâmicas de resolução -->
+                </select>
+            </div>
+            <button class="btn-download" onclick="triggerDownload()">Baixar Agora</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentUrl = '';
+
+    async function fetchMediaInfo() {
+        const urlInput = document.getElementById('videoUrl').value.trim();
+        if (!urlInput) return alert('Por favor, cole uma URL válida!');
+
+        currentUrl = urlInput;
+        document.getElementById('loader').style.display = 'block';
+        document.getElementById('mediaCard').style.display = 'none';
+
+        try {
+            const res = await fetch('/api/info', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: currentUrl })
+            });
+
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+
+            // Preenche dados do card
+            document.getElementById('thumb').src = data.thumbnail;
+            document.getElementById('title').innerText = data.title;
+            document.getElementById('details').innerText = `${data.uploader} • ${data.duration}`;
+
+            // Preenche resoluções
+            const qualitySelect = document.getElementById('qualitySelect');
+            qualitySelect.innerHTML = '<option value="max">Máxima Qualidade Disponível</option>';
+            data.resolutions.forEach(res => {
+                qualitySelect.innerHTML += `<option value="${res}">${res}p</option>`;
+            });
+
+            document.getElementById('mediaCard').style.display = 'block';
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            document.getElementById('loader').style.display = 'none';
+        }
+    }
+
+    function toggleQualityDropdown() {
+        const type = document.getElementById('formatType').value;
+        const qualityGroup = document.getElementById('qualityGroup');
+        qualityGroup.style.display = type === 'mp3' ? 'none' : 'block';
+    }
+
+    async function triggerDownload() {
+        const formatType = document.getElementById('formatType').value;
+        const quality = document.getElementById('qualitySelect').value;
+
+        document.getElementById('loader').innerText = '⚡ Processando e baixando seu arquivo...';
+        document.getElementById('loader').style.display = 'block';
+
+        try {
+            const response = await fetch('/api/download', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url: currentUrl, format_type: formatType, quality: quality })
+            });
+
+            if (!response.ok) throw new Error('Falha no download.');
+
+            const blob = await response.blob();
+            const downloadUrl = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            
+            // Tenta pegar o nome do arquivo do header ou define um genérico
+            a.download = formatType === 'mp3' ? 'audio.mp3' : 'video.mp4';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('loader').innerText = '🔍 Analisando link e buscando formatos...';
+        }
+    }
+</script>
+
+</body>
+</html>
