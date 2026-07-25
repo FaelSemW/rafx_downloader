@@ -5,9 +5,26 @@ import yt_dlp
 
 app = Flask(__name__)
 
+# --- CONFIGURAÇÃO DE COOKIES PARA O RENDER ---
+COOKIES_PATH = '/tmp/cookies.txt'
+
+def setup_cookies():
+    """Verifica se os cookies do Render existem e salva em um arquivo temporário."""
+    cookies_content = os.environ.get('YOUTUBE_COOKIES')
+    if cookies_content:
+        try:
+            with open(COOKIES_PATH, 'w', encoding='utf-8') as f:
+                f.write(cookies_content)
+            return COOKIES_PATH
+        except Exception as e:
+            app.logger.error(f"Erro ao salvar arquivo de cookies: {e}")
+    return None
+
+
 @app.route('/')
 def index():
     return render_template('index.html')
+
 
 @app.route('/api/info', methods=['POST'])
 def get_info():
@@ -18,6 +35,12 @@ def get_info():
         return jsonify({'error': 'URL inválida'}), 400
 
     ydl_opts = {'quiet': True}
+    
+    # Adiciona os cookies se estiverem configurados no Render
+    cookie_file = setup_cookies()
+    if cookie_file:
+        ydl_opts['cookiefile'] = cookie_file
+
     if 'tiktok.com' in url.lower():
         ydl_opts['extractor_args'] = {'tiktok': {'app_version': 'latest'}}
 
@@ -43,6 +66,7 @@ def get_info():
     except Exception as e:
         return jsonify({'error': f'Não foi possível analisar este link: {str(e)}'}), 500
 
+
 @app.route('/api/download', methods=['POST'])
 def process_download():
     data = request.json or {}
@@ -61,6 +85,11 @@ def process_download():
         'outtmpl': filename_template,
         'quiet': True,
     }
+
+    # Adiciona os cookies se estiverem configurados no Render
+    cookie_file = setup_cookies()
+    if cookie_file:
+        ydl_opts['cookiefile'] = cookie_file
 
     if 'tiktok.com' in url.lower():
         ydl_opts['extractor_args'] = {'tiktok': {'app_version': 'latest'}}
@@ -106,7 +135,7 @@ def process_download():
     except Exception as e:
         return jsonify({'error': f'Erro no processamento: {str(e)}'}), 500
 
+
 if __name__ == '__main__':
-    # Usa a porta dinâmica do ambiente ou 5000 por padrão
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
