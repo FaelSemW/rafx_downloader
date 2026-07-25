@@ -1,4 +1,5 @@
 import os
+import glob
 import tempfile
 from flask import Flask, render_template, request, jsonify, send_file, after_this_request
 import yt_dlp
@@ -34,9 +35,11 @@ def get_info():
     if not url:
         return jsonify({'error': 'URL inválida'}), 400
 
-    ydl_opts = {'quiet': True}
+    ydl_opts = {
+        'quiet': True,
+        'no_warnings': True,
+    }
     
-    # Adiciona os cookies se estiverem configurados no Render
     cookie_file = setup_cookies()
     if cookie_file:
         ydl_opts['cookiefile'] = cookie_file
@@ -51,7 +54,7 @@ def get_info():
             formats = info.get('formats', [])
             resolutions = set()
             for f in formats:
-                if f.get('vcodec') != 'none' and f.get('height'):
+                if f.get('height') and (f.get('vcodec') != 'none' or f.get('ext') == 'mp4'):
                     resolutions.add(f['height'])
             
             sorted_res = sorted(list(resolutions), reverse=True)
@@ -77,16 +80,15 @@ def process_download():
     if not url:
         return jsonify({'error': 'URL ausente'}), 400
 
-    # Cria uma pasta temporária para salvar o arquivo com segurança
     temp_dir = tempfile.mkdtemp()
     filename_template = os.path.join(temp_dir, '%(title)s.%(ext)s')
     
     ydl_opts = {
         'outtmpl': filename_template,
         'quiet': True,
+        'no_warnings': True,
     }
 
-    # Adiciona os cookies se estiverem configurados no Render
     cookie_file = setup_cookies()
     if cookie_file:
         ydl_opts['cookiefile'] = cookie_file
@@ -104,33 +106,40 @@ def process_download():
             }],
         })
     else:
+        # Fallbacks em cascata para evitar erros de formato indisponível
         if quality and quality != 'max':
-            ydl_opts['format'] = f'bestvideo[height<={quality}]+bestaudio/best[height<={quality}]/b[height<={quality}]/best'
+            ydl_opts['format'] = (
+                f'bestvideo[height<={quality}]+bestaudio/'
+                f'best[height<={quality}]/'
+                f'b[height<={quality}]/'
+                f'best'
+            )
         else:
-            ydl_opts['format'] = 'bestvideo+bestaudio/b/best'
+            ydl_opts['format'] = 'bestvideo+bestaudio/b/best/best'
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
-            filename = ydl.prepare_filename(info)
-            
-            if format_type == 'mp3':
-                base, _ = os.path.splitext(filename)
-                filename = base + '.mp3'
+            ydl.extract_info(url, download=True)
+
+        # Encontra o arquivo que foi baixado dentro da pasta temporária
+        downloaded_files = glob.glob(os.path.join(temp_dir, '*'))
+        if not downloaded_files:
+            return jsonify({'error': 'Não foi possível localizar o arquivo baixado'}), 500
+
+        final_file = downloaded_files[0]
 
         @after_this_request
         def remove_file(response):
-            # Limpa o arquivo e a pasta temporária após enviar ao usuário
             try:
-                if os.path.exists(filename):
-                    os.remove(filename)
+                if os.path.exists(final_file):
+                    os.remove(final_file)
                 if os.path.exists(temp_dir):
                     os.rmdir(temp_dir)
             except Exception as e:
                 app.logger.error(f"Erro ao deletar arquivo temporário: {e}")
             return response
 
-        return send_file(filename, as_attachment=True)
+        return send_file(final_file, as_attachment=True)
 
     except Exception as e:
         return jsonify({'error': f'Erro no processamento: {str(e)}'}), 500
