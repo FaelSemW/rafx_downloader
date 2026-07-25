@@ -47,9 +47,9 @@ def get_info():
         'quiet': True,
         'no_warnings': True,
         'noplaylist': True,
-        # Força o uso dos clientes Android e Web para ignorar limitações recentes do YouTube
+        # Usa ios e mweb que ignoram a checagem que causa 'Requested format is not available'
         'extractor_args': {
-            'youtube': {'player_client': ['android', 'web']}
+            'youtube': {'player_client': ['ios', 'mweb', 'android']}
         }
     }
     
@@ -105,7 +105,7 @@ def process_download():
         'no_warnings': True,
         'noplaylist': True,
         'extractor_args': {
-            'youtube': {'player_client': ['android', 'web']}
+            'youtube': {'player_client': ['ios', 'mweb', 'android']}
         }
     }
 
@@ -126,16 +126,11 @@ def process_download():
             }],
         })
     else:
+        # Usa a regra de seleção universal 'b/best'
         if quality and quality != 'max':
-            ydl_opts['format'] = (
-                f'bestvideo[height<={quality}]+bestaudio/'
-                f'best[height<={quality}]/'
-                f'b[height<={quality}]/'
-                f'best/'
-                f'worst'
-            )
+            ydl_opts['format'] = f'b[height<={quality}]/best[height<={quality}]/best'
         else:
-            ydl_opts['format'] = 'bestvideo+bestaudio/best/b/worst'
+            ydl_opts['format'] = 'b/best'
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
