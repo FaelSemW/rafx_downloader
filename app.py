@@ -6,7 +6,6 @@ import yt_dlp
 
 app = Flask(__name__)
 
-# --- CONFIGURAÇÃO DE COOKIES PARA O RENDER ---
 COOKIES_PATH = '/tmp/cookies.txt'
 
 def setup_cookies():
@@ -22,7 +21,6 @@ def setup_cookies():
     return None
 
 
-# --- RESPOSTAS EM JSON PARA ERROS DO SERVIDOR (Evita erro de HTML no front) ---
 @app.errorhandler(500)
 def internal_error(error):
     return jsonify({'error': 'Erro interno no servidor ou timeout. Tente novamente.'}), 500
@@ -48,7 +46,7 @@ def get_info():
     ydl_opts = {
         'quiet': True,
         'no_warnings': True,
-        'noplaylist': True,  # Força pegar apenas o vídeo individual e ignora playlists/mixes
+        'noplaylist': True,
     }
     
     cookie_file = setup_cookies()
@@ -62,14 +60,13 @@ def get_info():
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             
-            # Se ainda assim o yt-dlp retornar uma estrutura com múltiplos vídeos, pega o primeiro
             if 'entries' in info and info['entries']:
                 info = info['entries'][0]
 
             formats = info.get('formats', [])
             resolutions = set()
             for f in formats:
-                if f.get('height') and (f.get('vcodec') != 'none' or f.get('ext') == 'mp4'):
+                if f.get('height'):
                     resolutions.add(f['height'])
             
             sorted_res = sorted(list(resolutions), reverse=True)
@@ -102,7 +99,7 @@ def process_download():
         'outtmpl': filename_template,
         'quiet': True,
         'no_warnings': True,
-        'noplaylist': True,  # Impede o download da playlist inteira
+        'noplaylist': True,
     }
 
     cookie_file = setup_cookies()
@@ -122,22 +119,22 @@ def process_download():
             }],
         })
     else:
-        # Regras de formato com fallback seguro para não falhar no download
+        # Formatos em cascata super flexíveis
         if quality and quality != 'max':
             ydl_opts['format'] = (
                 f'bestvideo[height<={quality}]+bestaudio/'
                 f'best[height<={quality}]/'
                 f'b[height<={quality}]/'
-                f'best'
+                f'best/'
+                f'worst'
             )
         else:
-            ydl_opts['format'] = 'bestvideo+bestaudio/b/best/best'
+            ydl_opts['format'] = 'bestvideo+bestaudio/best/b/worst'
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.extract_info(url, download=True)
 
-        # Localiza o arquivo gerado na pasta temporária
         downloaded_files = glob.glob(os.path.join(temp_dir, '*'))
         if not downloaded_files:
             return jsonify({'error': 'Não foi possível localizar o arquivo baixado'}), 500
